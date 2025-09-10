@@ -78,29 +78,16 @@ const ObjectDetectionCamera = (props: {
       return;
     }
     liveDetection.current = true;
-
-    const processFrame = async () => {
-      if (!liveDetection.current) return;
-
-      try {
-        const startTime = Date.now();
-        const ctx = capture();
-        if (!ctx) return;
-        await runModel(ctx);
-        setTotalTime(Date.now() - startTime);
-      } catch (error) {
-        console.error('Error processing frame:', error);
-        liveDetection.current = false;
-        return;
-      }
-
-      // Используем setTimeout вместо requestAnimationFrame для контроля FPS
-      if (liveDetection.current) {
-        setTimeout(processFrame, 100); // 10 FPS максимум
-      }
-    };
-
-    processFrame();
+    while (liveDetection.current) {
+      const startTime = Date.now();
+      const ctx = capture();
+      if (!ctx) return;
+      await runModel(ctx);
+      setTotalTime(Date.now() - startTime);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve())
+      );
+    }
   };
 
   const processImage = async () => {
@@ -144,33 +131,12 @@ const ObjectDetectionCamera = (props: {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         liveDetection.current = false;
-        // Освобождаем ресурсы камеры
-        if (webcamRef.current?.video?.srcObject) {
-          const stream = webcamRef.current.video.srcObject as MediaStream;
-          stream.getTracks().forEach(track => track.stop());
-        }
       }
+      // set SSR to true to prevent webcam from loading when tab is not active
       setSSR(document.hidden);
     };
-
-    const handleResize = () => {
-      setWebcamCanvasOverlaySize();
-    };
-
+    setSSR(document.hidden);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('resize', handleResize);
-
-      // Cleanup
-      liveDetection.current = false;
-      if (webcamRef.current?.video?.srcObject) {
-        const stream = webcamRef.current.video.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
   }, []);
 
   if (SSR) {
