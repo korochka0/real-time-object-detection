@@ -8,7 +8,9 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config, {}) => {
+  output: 'export', // ← Это обязательно для создания папки out
+  trailingSlash: true, // Рекомендуется для Appwrite
+  webpack: (config, { }) => {
     config.resolve.extensions.push('.ts', '.tsx');
     config.resolve.fallback = { fs: false };
 
